@@ -1,5 +1,6 @@
 package ru.kiryantsev
 
+import io.ktor.client.call.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -8,13 +9,9 @@ import io.ktor.server.response.*
 import io.ktor.util.pipeline.*
 
 object RequestParser {
-
-    private val saver = RequestProxy()
-
     //check it contains in files
     // if not - proxy request and save and response
     // if have - send "cached" request
-
 
     suspend fun parse(pipelineContext: PipelineContext<Unit, ApplicationCall>) {
         with(pipelineContext.call.request) {
@@ -23,14 +20,15 @@ object RequestParser {
             val fulluri = local.uri
 //            val cookies = cookies.rawCookies
             val body = call.receiveText()
-            val readyResponse = RequestCacheController.tryGetResponseBody(method = method, fulluri = fulluri, body = body)
+            val readyResponse =
+                RequestCacheController.tryGetResponseBody(method = method, fulluri = fulluri, body = body)
 
             if (readyResponse != null) {
                 //send "cached" request
-                pipelineContext.call.respond(status = HttpStatusCode(readyResponse.second,""), readyResponse.first)
+                pipelineContext.call.respond(status = HttpStatusCode(readyResponse.second, ""), readyResponse.first)
             } else {
                 // proxy request and save and response
-              val response = RequestProxy.proxyRequest(call.request, body)
+                val response = RequestProxy.proxyRequest(call.request, body)
                 RequestCacheController.saveResponse(
                     method,
                     fulluri,
@@ -38,6 +36,7 @@ object RequestParser {
                     response.bodyAsText(),
                     response.status.value,
                 )
+                pipelineContext.call.respond(status = response.status, response.body())
             }
         }
     }
