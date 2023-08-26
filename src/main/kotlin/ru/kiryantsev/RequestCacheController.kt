@@ -37,33 +37,42 @@ object RequestCacheController {
         responseBody: String,
         resposeCode: Int
     ) {
-        val thisConfig = if (fulluri == "/" && method == HttpMethod.Post) {
-            //its rpc or graphql
-            val filename = "PROCEDURE/" + procedureReqParamsToFilePath(responseBody)
-            PathConfig(
-                pathMask = fulluri,
-                pathMethod = method.toOwnMethod(),
-                requestBodyData = requestBody,
-                responseCode = resposeCode,
-                pathToFile = filename
-            )
+        val thisFilename = if (fulluri == "/" && method == HttpMethod.Post) {
+            "PROCEDURE/" + procedureReqParamsToFilePath(responseBody)
         } else {
-            PathConfig(
-                pathMask = fulluri,
-                pathMethod = method.toOwnMethod(),
-                requestBodyData = requestBody,
-                responseCode = resposeCode,
-                pathToFile = reqParamsToFilePath(method, fulluri)
-            )
+            reqParamsToFilePath(method, fulluri)
         }
+
+        val thisConfig = PathConfig(
+            pathMask = fulluri,
+            pathMethod = method.toOwnMethod(),
+            requestBodyData = requestBody,
+            responseCode = resposeCode,
+            pathToFile = thisFilename
+        )
+
+        saveResponseBody(Util.currentWorkingDir + "/" + thisFilename, responseBody)
 
         val newConfig = config.copy(pathConfigs = mutableListOf(thisConfig).apply {
             config.pathConfigs?.let {
                 addAll(it)
             }
         })
+
         config = newConfig
         saveConfig()
+    }
+
+    private fun saveResponseBody(thisFilename: String, responseBody: String) {
+        val file = File(thisFilename)
+        val dir = file.parentFile
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        if (!file.exists()) {
+            file.createNewFile()
+        }
+        file.writeText(responseBody)
     }
 
 
@@ -73,7 +82,7 @@ object RequestCacheController {
             println("change serverToProxy and restart app")
             File("${Util.currentWorkingDir}/config.json").apply {
                 createNewFile()
-                val sampleConfig = Json.encodeToString(ConfigFile(null, "http://testserver.com",null))
+                val sampleConfig = Json.encodeToString(ConfigFile(null, "http://testserver.com", null))
                 writeText(sampleConfig)
             }
             exitProcess(1)
@@ -102,15 +111,6 @@ object RequestCacheController {
             configFile.createNewFile()
         }
         configFile.writeText(Json.encodeToString(config))
-    }
-
-
-    private fun containsReadyResponse(method: HttpMethod, fulluri: String): Boolean {
-        if (method == HttpMethod.Post && fulluri == "/") {
-            return false//todo
-        } else {
-            return File(reqParamsToFilePath(method, fulluri)).exists()
-        }
     }
 
 
