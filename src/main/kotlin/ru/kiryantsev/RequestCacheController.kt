@@ -115,7 +115,7 @@ object RequestCacheController {
 
 
     private fun reqParamsToFilePath(method: HttpMethod, fulluri: String): String =
-        "${Util.currentWorkingDir}/$method/${fulluri.encodeToFile()}"
+        "${Util.currentWorkingDir}/${method.value}/${fulluri.encodeToFile()}"
 
     private fun procedureReqParamsToFilePath(body: String): String =
         body.replace(" ", "").substring(10).trim().encodeToFile() + UUID.randomUUID()
